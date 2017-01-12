@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 namespace TaoBaoOrders
 {
-    static class Program
+    static class Program 
     {
         /// <summary>
         /// 应用程序的主入口点。

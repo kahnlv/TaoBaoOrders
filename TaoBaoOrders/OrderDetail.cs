@@ -5,7 +5,7 @@
         /// <summary>
         /// 订单编号
         /// </summary>
-        public string OrderId { get; set; } = "";
+        public string OrderId { get; set; } = ""; 
 
         /// <summary>
         /// 标题

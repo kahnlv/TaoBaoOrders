@@ -220,7 +220,7 @@ namespace TaoBaoOrders {
                             order.BuyCount = getInt(content[24]);
 
 
-                            list.Add(order);
+                            list.Add(order); 
                         }
                     }
                 }
