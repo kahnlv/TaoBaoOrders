@@ -142,6 +142,8 @@ namespace TaoBaoOrders
                     HSSFWorkbook book = new HSSFWorkbook();
                     ISheet sheet = book.CreateSheet();
                     IRow headRow = sheet.CreateRow(0);
+                    ICellStyle cellStyle = book.CreateCellStyle();
+                    IDataFormat format = book.CreateDataFormat();
 
                     var headKeys = filterOrder[0].Keys;
 
@@ -161,8 +163,6 @@ namespace TaoBaoOrders
                             filterOrder[i].TryGetValue(keys.ElementAt(j), out o);
                             if ((o + "").Length > 0)
                             {
-                                ICellStyle cellStyle = book.CreateCellStyle();
-                                IDataFormat format = book.CreateDataFormat();
                                 cellStyle.DataFormat = format.GetFormat("@");
 
                                 row.CreateCell(j).SetCellValue(o as string);
