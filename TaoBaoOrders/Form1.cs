@@ -2,13 +2,10 @@
 using NPOI.SS.UserModel;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace TaoBaoOrders
@@ -100,7 +97,7 @@ namespace TaoBaoOrders
                         remark += "订单号：" + ol.OrderId + (ol.BuyRemark.Length > 0 ? " 买家备注：" + ol.BuyRemark : "") + (ol.OrderRemark.Length > 0 ? "  订单备注：" + ol.OrderRemark : "") + "|";
                     }
 
-                    consignee = ol.Consignee + " " + ol.Address + " " + ol.Phone;
+                    consignee = KeepChinese(ol.Consignee) + " " + ol.Address + " " + ol.Phone;
                 }
 
                 order.Add("收货人信息", consignee);
@@ -116,6 +113,22 @@ namespace TaoBaoOrders
             }
             ExportXls(filterOrder);
             //SaveFile(filterOrder);
+        }
+
+        private string KeepChinese(string Consignee)
+        {
+            string strChinese = "";
+            Regex reg = new Regex("[^\x00-\xFF]|[a-zA-Z]");
+
+            foreach (var s in Consignee)
+            {
+                if (reg.IsMatch(s.ToString()))
+                {
+                    strChinese += s;
+                }
+            }
+
+            return strChinese;
         }
 
         private void ExportXls(List<Dictionary<string, object>> filterOrder, string filePath = "")
@@ -148,6 +161,10 @@ namespace TaoBaoOrders
                             filterOrder[i].TryGetValue(keys.ElementAt(j), out o);
                             if ((o + "").Length > 0)
                             {
+                                ICellStyle cellStyle = book.CreateCellStyle();
+                                IDataFormat format = book.CreateDataFormat();
+                                cellStyle.DataFormat = format.GetFormat("@");
+
                                 row.CreateCell(j).SetCellValue(o as string);
                             }
                         }
@@ -282,10 +299,9 @@ namespace TaoBaoOrders
             {
                 using (StreamReader sr = new StreamReader(path, Encoding.Default))
                 {
-                    string line = "";
+                    string line = "", address = "", phone = ""; ;
                     string[] content;
                     int i = 0;
-                    string address = "";
 
                     while (null != (line = sr.ReadLine()))
                     {
@@ -315,7 +331,15 @@ namespace TaoBaoOrders
                             }
 
                             order.Address = address;
-                            order.Phone = getString(content[16]);
+
+                            phone = getString(content[16]);
+
+                            if ((phone + "").Length == 0)
+                            {
+                                phone = getString(content[15]);
+                            }
+
+                            order.Phone = phone;
                             order.Title = getString(content[19]);
                             order.OrderRemark = getString(content[23]);
                             order.BuyCount = getInt(content[24]);
