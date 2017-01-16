@@ -1,4 +1,6 @@
-﻿using System;
+﻿using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -9,27 +11,35 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace TaoBaoOrders {
-    public partial class Form1 : Form {
-        public Form1() {
+namespace TaoBaoOrders
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
             InitializeComponent();
         }
 
-        private void btnOrderList_Click(object sender, EventArgs e) {
+        private void btnOrderList_Click(object sender, EventArgs e)
+        {
             OpenFileDialog();
         }
 
-        private void btnOrderDetail_Click(object sender, EventArgs e) {
+        private void btnOrderDetail_Click(object sender, EventArgs e)
+        {
             OpenFileDialog(1);
         }
 
-        private void btnExport_Click(object sender, EventArgs e) {
-            if (txtOrderList.Text.Length == 0) {
+        private void btnExport_Click(object sender, EventArgs e)
+        {
+            if (txtOrderList.Text.Length == 0)
+            {
                 MessageBox.Show("请选择要整合的订单文件！");
                 return;
             }
 
-            if (txtOrderDetail.Text.Length == 0) {
+            if (txtOrderDetail.Text.Length == 0)
+            {
                 MessageBox.Show("请选择要整合的订单详情文件！");
                 return;
             }
@@ -42,21 +52,25 @@ namespace TaoBaoOrders {
 
             List<string> orderIds = new List<string>();
 
-            foreach (var o in orderList) {
+            foreach (var o in orderList)
+            {
                 var newOrder = orderList.FindAll(m => m.Address.Equals(o.Address));
                 string orderid = "";
-                foreach (var n in newOrder) {
+                foreach (var n in newOrder)
+                {
                     orderid += n.OrderId + "|";
                 }
 
                 orderid = orderid.TrimEnd(new char[] { '|' });
 
-                if (null == orderIds.Find(m => m == orderid)) {
+                if (null == orderIds.Find(m => m == orderid))
+                {
                     orderIds.Add(orderid);
                 }
             }
 
-            foreach (var o in orderIds) {
+            foreach (var o in orderIds)
+            {
                 string[] oids = o.Split('|');
                 var orderDetail = orderDetailList.FindAll(m => oids.Contains(m.OrderId));
 
@@ -67,7 +81,8 @@ namespace TaoBaoOrders {
                 order.Add("发货日期", "");
 
                 List<string> oi = new List<string>();
-                foreach (var od in orderDetail) {
+                foreach (var od in orderDetail)
+                {
                     oi.Add(od.OrderAttribute + " " + od.BuyCount + "份");
                 }
 
@@ -78,8 +93,10 @@ namespace TaoBaoOrders {
 
                 string remark = "",
                        consignee = "";
-                foreach (var ol in olist) {
-                    if (ol.OrderRemark.Length > 0 || ol.BuyRemark.Length > 0) {
+                foreach (var ol in olist)
+                {
+                    if (ol.OrderRemark.Length > 0 || ol.BuyRemark.Length > 0)
+                    {
                         remark += "订单号：" + ol.OrderId + (ol.BuyRemark.Length > 0 ? " 买家备注：" + ol.BuyRemark : "") + (ol.OrderRemark.Length > 0 ? "  订单备注：" + ol.OrderRemark : "") + "|";
                     }
 
@@ -97,31 +114,96 @@ namespace TaoBaoOrders {
 
                 filterOrder.Add(order);
             }
-
-            SaveFile(filterOrder);
+            ExportXls(filterOrder);
+            //SaveFile(filterOrder);
         }
 
-        private void SaveFile(List<Dictionary<string, object>> filterOrder, string filePath = "") {
+        private void ExportXls(List<Dictionary<string, object>> filterOrder, string filePath = "")
+        {
+            if (filterOrder.Count > 0)
+            {
+                filePath = filePath.Length == 0 ? DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls" : filePath;
+
+                try
+                {
+                    HSSFWorkbook book = new HSSFWorkbook();
+                    ISheet sheet = book.CreateSheet();
+                    IRow headRow = sheet.CreateRow(0);
+
+                    var headKeys = filterOrder[0].Keys;
+
+                    for (int i = 0; i < headKeys.Count; i++)
+                    {
+                        headRow.CreateCell(i).SetCellValue(headKeys.ElementAt(i));
+                    }
+
+                    for (int i = 0; i < filterOrder.Count; i++)
+                    {
+                        IRow row = sheet.CreateRow(i + 1);
+                        var keys = filterOrder[i].Keys;
+
+                        for (int j = 0; j < keys.Count; j++)
+                        {
+                            object o;
+                            filterOrder[i].TryGetValue(keys.ElementAt(j), out o);
+                            if ((o + "").Length > 0)
+                            {
+                                row.CreateCell(j).SetCellValue(o as string);
+                            }
+                        }
+                    }
+
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        book.Write(ms);
+                        using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                        {
+                            byte[] data = ms.ToArray();
+                            fs.Write(data, 0, data.Length);
+                            fs.Flush();
+                        }
+                        book = null;
+                    }
+
+                    MessageBox.Show("导出成功，请到程序文件夹下查看！");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+            }
+        }
+
+
+        private void SaveFile(List<Dictionary<string, object>> filterOrder, string filePath = "")
+        {
             filePath = filePath.Length == 0 ? DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv" : filePath;
 
             FileInfo fi = new FileInfo(filePath);
 
-            if (!fi.Directory.Exists) {
+            if (!fi.Directory.Exists)
+            {
                 fi.Directory.Create();
             }
 
             string data = "";
-            using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write)) {
-                using (StreamWriter sw = new StreamWriter(fs, Encoding.UTF8)) {
-                    if (filterOrder.Count > 0) {
-                        foreach (var key in filterOrder[0].Keys) {
+            using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                using (StreamWriter sw = new StreamWriter(fs, Encoding.UTF8))
+                {
+                    if (filterOrder.Count > 0)
+                    {
+                        foreach (var key in filterOrder[0].Keys)
+                        {
                             data += key + ",";
                         }
                     }
                     sw.WriteLine(data);
-                    foreach (var value in filterOrder) {
+                    foreach (var value in filterOrder)
+                    {
                         data = "";
-                        foreach (var key in value.Keys) {
+                        foreach (var key in value.Keys)
+                        {
                             object o;
                             value.TryGetValue(key, out o);
                             data += "\"'" + o.ToString() + "\",";
@@ -136,27 +218,36 @@ namespace TaoBaoOrders {
         }
 
         #region 读取文件
-        private void OpenFileDialog(int index = 0) {
+        private void OpenFileDialog(int index = 0)
+        {
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "Excel文件|*.csv;*.xls;*.xlsx|所有文件|*.*";
-            if (ofd.ShowDialog() == DialogResult.OK) {
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
                 if (index == 0) { txtOrderList.Text = ofd.FileName; } else { txtOrderDetail.Text = ofd.FileName; };
             }
         }
 
-        private List<OrderDetail> ReadOrderDetailFile(string path) {
+        private List<OrderDetail> ReadOrderDetailFile(string path)
+        {
             List<OrderDetail> list = new List<OrderDetail>();
 
-            try {
-                using (StreamReader sr = new StreamReader(path, Encoding.Default)) {
+            try
+            {
+                using (StreamReader sr = new StreamReader(path, Encoding.Default))
+                {
                     string line = "";
                     string[] content;
                     int i = 0;
 
-                    while (null != (line = sr.ReadLine())) {
-                        if (i == 0) {
+                    while (null != (line = sr.ReadLine()))
+                    {
+                        if (i == 0)
+                        {
                             i++;
-                        } else {
+                        }
+                        else
+                        {
                             OrderDetail order = new OrderDetail();
                             content = line.Split(',');
 
@@ -175,26 +266,35 @@ namespace TaoBaoOrders {
                         }
                     }
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 MessageBox.Show(e.Message);
             }
 
             return list;
         }
 
-        private List<OrderList> ReadOrderListFile(string path) {
+        private List<OrderList> ReadOrderListFile(string path)
+        {
             List<OrderList> list = new List<OrderList>();
-            try {
-                using (StreamReader sr = new StreamReader(path, Encoding.Default)) {
+            try
+            {
+                using (StreamReader sr = new StreamReader(path, Encoding.Default))
+                {
                     string line = "";
                     string[] content;
                     int i = 0;
                     string address = "";
 
-                    while (null != (line = sr.ReadLine())) {
-                        if (i == 0) {
+                    while (null != (line = sr.ReadLine()))
+                    {
+                        if (i == 0)
+                        {
                             i++;
-                        } else {
+                        }
+                        else
+                        {
                             OrderList order = new OrderList();
                             content = line.Split(',');
 
@@ -209,7 +309,8 @@ namespace TaoBaoOrders {
 
                             address = getString(content[39]);
 
-                            if ((address + "").Length == 0) {
+                            if ((address + "").Length == 0)
+                            {
                                 address = getString(content[13]);
                             }
 
@@ -220,24 +321,28 @@ namespace TaoBaoOrders {
                             order.BuyCount = getInt(content[24]);
 
 
-                            list.Add(order); 
+                            list.Add(order);
                         }
                     }
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 MessageBox.Show(e.Message);
             }
 
             return list;
         }
 
-        private string getString(string value) {
+        private string getString(string value)
+        {
             value = value.Replace("=", "").Replace("\"", "").Replace("'", "");
 
             return value;
         }
 
-        private decimal getDecimal(string value) {
+        private decimal getDecimal(string value)
+        {
             decimal decimalValue = 0;
 
             value = value.Replace("=", "").Replace("\"", "");
@@ -247,7 +352,8 @@ namespace TaoBaoOrders {
             return decimalValue;
         }
 
-        private int getInt(string value) {
+        private int getInt(string value)
+        {
             int intValue = 0;
 
             value = value.Replace("=", "").Replace("\"", "");
