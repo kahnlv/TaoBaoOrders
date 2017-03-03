@@ -74,7 +74,8 @@ namespace TaoBaoOrders
                 Dictionary<string, object> order = new Dictionary<string, object>();
 
                 order.Add("订单号", o);
-                order.Add("发货人", "");
+                order.Add("发货人", txtConsignor.Text.Trim());
+                order.Add("店铺旺旺", txtWangwang.Text.Trim());
                 order.Add("发货日期", "");
 
                 List<string> oi = new List<string>();
@@ -118,13 +119,48 @@ namespace TaoBaoOrders
         private string KeepChinese(string Consignee)
         {
             string strChinese = "";
-            Regex reg = new Regex("[^\x00-\xFF]|[a-zA-Z]");
 
-            foreach (var s in Consignee)
+            if (cbSpecial.Checked)
             {
-                if (reg.IsMatch(s.ToString()))
+                Regex reg = new Regex("[^\x00-\xFF]");
+
+                foreach (var s in Consignee)
                 {
-                    strChinese += s;
+                    if (reg.IsMatch(s.ToString()))
+                    {
+                        strChinese += s;
+                    }
+                }
+            }
+
+            if (cbEn.Checked)
+            {
+                Regex reg = new Regex("[a-zA-Z]");
+
+                foreach (var s in Consignee)
+                {
+                    if (reg.IsMatch(s.ToString()))
+                    {
+                        strChinese += s;
+                    }
+                }
+            }
+
+            if (strChinese.Length == 0)
+            {
+                strChinese = Consignee;
+            }
+
+            if (cbIntercept.Checked)
+            {
+                int len = 0;
+
+                if (int.TryParse(txtIntercept.Text, out len) && len > 0)
+                {
+                    if (strChinese.Length > len)
+                    {
+                        strChinese = strChinese.Substring(0, len);
+                    }
                 }
             }
 
@@ -133,6 +169,7 @@ namespace TaoBaoOrders
 
         private void ExportXls(List<Dictionary<string, object>> filterOrder, string filePath = "")
         {
+            SetConfig();
             if (filterOrder.Count > 0)
             {
                 filePath = filePath.Length == 0 ? DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls" : filePath;
@@ -230,7 +267,7 @@ namespace TaoBaoOrders
 
                 }
             }
-
+            SetConfig();
             MessageBox.Show("导出成功，请到程序文件夹下查看！");
         }
 
@@ -387,5 +424,103 @@ namespace TaoBaoOrders
             return intValue;
         }
         #endregion
+
+        private void cbSpecial_CheckedChanged(object sender, EventArgs e)
+        {
+            //SetConfig();
+        }
+
+        private void cbEn_CheckedChanged(object sender, EventArgs e)
+        {
+            //SetConfig();
+        }
+
+        private void cbIntercept_CheckedChanged(object sender, EventArgs e)
+        {
+            txtIntercept.ReadOnly = !txtIntercept.ReadOnly;
+            txtIntercept.Focus();
+
+            //SetConfig();
+        }
+
+        private void txtIntercept_TextChanged(object sender, EventArgs e)
+        {
+            //SetConfig();
+        }
+
+        private void SetConfig()
+        {
+            string configPath = "setting.ini";
+
+            FileInfo fi = new FileInfo(configPath);
+
+            if (!fi.Directory.Exists)
+            {
+                fi.Directory.Create();
+            }
+
+            using (FileStream fs = new FileStream(configPath, FileMode.Create, FileAccess.Write))
+            {
+                using (StreamWriter sw = new StreamWriter(fs, Encoding.UTF8))
+                {
+                    string config = "{0},{1},{2}:{3},{4},{5}";
+
+                    int inter = 0;
+
+                    int.TryParse(txtIntercept.Text.Trim(), out inter);
+
+                    sw.Write(string.Format(config, cbSpecial.Checked.ToString().ToLower(),
+                                                   cbEn.Checked.ToString().ToLower(),
+                                                   cbIntercept.Checked.ToString().ToLower(),
+                                                   inter,
+                                                   txtConsignor.Text.Trim(),
+                                                   txtWangwang.Text.Trim()));
+                    sw.Close();
+                    fs.Close();
+                }
+            }
+        }
+
+        private void ReadConfig()
+        {
+            string[] configs, intercept;
+            try
+            {
+                if (File.Exists("setting.ini"))
+                {
+                    using (StreamReader sr = new StreamReader("setting.ini", Encoding.Default))
+                    {
+                        string line = "";
+                        line = sr.ReadLine();
+                        sr.Close();
+                        configs = line.Split(',');
+
+                        if (configs.Length > 0)
+                        {
+                            cbSpecial.Checked = "true".Equals(configs[0]);
+                            cbEn.Checked = "true".Equals(configs[1]);
+
+                            intercept = configs[2].Split(':');
+
+                            cbIntercept.Checked = "true".Equals(intercept[0]);
+                            txtIntercept.Text = intercept[1];
+
+                            txtConsignor.Text = configs[3];
+                            txtWangwang.Text = configs[4];
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            ReadConfig();
+        }
     }
 }
